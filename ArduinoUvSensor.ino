@@ -4,10 +4,10 @@
 //sensor variables
 #define SONAR_NUM     3 // Number or sensors.
 #define MAX_DISTANCE 400 // Max distance in cm.
-#define PING_INTERVAL 50 // Milliseconds between pings.
+#define PING_INTERVAL 33 // Milliseconds between pings.
 
 // baseline variables, (keep these high because the sensor is utter shite)
-#define BUFFER 20 //How far away from baseline data does a result have to be to not snap to the baseline
+#define BUFFER 10 //How far away from baseline data does a result have to be to not snap to the baseline
 #define DYNAMICBASELINE false // wheather or not to adjust baseline on the fly(not implemented yet).
 #define MINDISTANCE 30
 
@@ -28,7 +28,7 @@
 
 
 //number of pulses to take the average of
-int numberOfCycles = 10; 
+int numberOfCycles = 7; 
 int currentCycle = 0;
 int baselineCycles = 10;
 
