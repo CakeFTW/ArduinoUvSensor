@@ -28,6 +28,7 @@
 #define ECHO_PIN2     9
 
 
+
 //number of pulses to take the average of
 int numberOfCycles = 7; 
 int currentCycle = 0;
