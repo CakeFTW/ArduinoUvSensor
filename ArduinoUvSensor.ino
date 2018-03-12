@@ -10,6 +10,7 @@
 #define BUFFER 10 //How far away from baseline data does a result have to be to not snap to the baseline
 #define DYNAMICBASELINE false // wheather or not to adjust baseline on the fly(not implemented yet).
 #define MINDISTANCE 30
+#define RESETAMOUNT 2
 
 //flow varaibles
 #define TIMEUNTILSTART 75; //how many milliseconds to wait before starting to meassure for the baseline
@@ -50,6 +51,8 @@ uint8_t currentSensor = 0; // Which sensor is active.
 //file stuff
 //create a file 
 File myFile;
+unsigned int peopleCounter[SONAR_NUM] = {0,0,0}; //counts nr hold people entering
+unsigned int baselineCounter[SONAR_NUM] = {RESETAMOUNT,RESETAMOUNT,RESETAMOUNT};
 
 
 
