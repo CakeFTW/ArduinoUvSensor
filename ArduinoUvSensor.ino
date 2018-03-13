@@ -7,10 +7,10 @@
 #define PING_INTERVAL 33 // Milliseconds between pings.
 
 // baseline variables, (keep these high because the sensor is utter shite)
-#define BUFFER 10 //How far away from baseline data does a result have to be to not snap to the baseline
+#define BUFFER 20 //How far away from baseline data does a result have to be to not snap to the baseline
 #define DYNAMICBASELINE false // wheather or not to adjust baseline on the fly(not implemented yet).
 #define MINDISTANCE 30
-#define RESETAMOUNT 2
+#define RESETAMOUNT 3
 
 //flow varaibles
 #define TIMEUNTILSTART 75; //how many milliseconds to wait before starting to meassure for the baseline
@@ -53,7 +53,8 @@ uint8_t currentSensor = 0; // Which sensor is active.
 //create a file 
 File myFile;
 unsigned int peopleCounter[SONAR_NUM] = {0,0,0}; //counts nr hold people entering
-unsigned int baselineCounter[SONAR_NUM] = {RESETAMOUNT,RESETAMOUNT,RESETAMOUNT};
+unsigned int baselineCounter[SONAR_NUM] = {0,0,0};
+unsigned long timeIn[SONAR_NUM];
 
 
 
@@ -62,7 +63,7 @@ void setup() {
   //delay(5000); //delay for 5 secs before starting to set the baseline
   //Initialize SD card and Check if the SD card and libary failed
   Serial.print("Initializing SD card...");
- 
+  pinMode(3, OUTPUT);
   if (!SD.begin(4)) {
     Serial.println("initialization failed!");
     while (1);
@@ -109,7 +110,7 @@ void loop() {
 void echoCheck() { // If ping echo, set distance to array.
   if (sonar[currentSensor].check_timer()){
     int dist = sonar[currentSensor].ping_result / US_ROUNDTRIP_CM; // read the distance;
-    
+    Serial.print(String(dist) + " ");
     if(baselineSet[currentSensor]){
       if(dist == 0){dist = baseline[currentSensor];}
       //{baseline[currentSensor] = 0.97* baseline[currentSensor] + 0.03 * dist;}
@@ -150,6 +151,27 @@ void oneSensorCycle() { // Do something with the results.
         }else{
           cm[i] = 0;
         }
+        if(cm[i] == 0){
+          baselineCounter[i]++;
+          if(baselineCounter[i] == RESETAMOUNT){
+            digitalWrite(3, LOW);
+            myFile = SD.open("sensor" + String(i)+".txt", FILE_WRITE);
+            long timeNow = millis();
+            myFile.println(String(peopleCounter[i]) + " "+ String(timeIn[i]) + " " + String(timeNow));
+            myFile.close();
+          }
+        }else{
+          if(baselineCounter[i] >= RESETAMOUNT){
+            //somebody have entered the room
+            peopleCounter[i]++;
+            digitalWrite(3, HIGH);
+            timeIn[i] = millis();
+          }
+          //there must be somebody in the room
+          baselineCounter[i] = 0;
+        }
+        
+        
         Serial.print(cm[i]);
         Serial.print("cm ");
         cm[i] = 0;
