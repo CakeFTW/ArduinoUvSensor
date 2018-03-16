@@ -156,7 +156,7 @@ void oneSensorCycle() { // Do something with the results.
           if(baselineCounter[i] == RESETAMOUNT){
             digitalWrite(3, LOW);
             myFile = SD.open("sensor" + String(i)+".txt", FILE_WRITE);
-            long timeNow = millis();
+            long timeNow = millis()/1000;
             myFile.println(String(peopleCounter[i]) + " "+ String(timeIn[i]) + " " + String(timeNow));
             myFile.close();
           }
@@ -165,7 +165,7 @@ void oneSensorCycle() { // Do something with the results.
             //somebody have entered the room
             peopleCounter[i]++;
             digitalWrite(3, HIGH);
-            timeIn[i] = millis();
+            timeIn[i] = millis()/1000;
           }
           //there must be somebody in the room
           baselineCounter[i] = 0;
