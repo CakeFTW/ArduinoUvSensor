@@ -37,6 +37,12 @@
 
 #define LEDPIN  3
 
+#define SOAP1   11
+#define SOAP2   12
+#define SOAP3   13
+
+#define TIME_BETWEEN_SOAP 10
+
 
 //number of pulses to take the average of
 int numberOfCycles = 7; 
@@ -75,6 +81,11 @@ void setup() {
   #ifdef SSDSHIELD
   //Initialize SD card and Check if the SD card and libary failed
   Serial.print("Initializing SD card...");
+
+  pinMode(SOAP1, INPUT_PULLUP);
+  pinMode(SOAP2, INPUT_PULLUP);
+  pinMode(SOAP3, INPUT_PULLUP);
+  
   pinMode(3, OUTPUT);
   if (!SD.begin(4)) {
     Serial.println("initialization failed!");
@@ -106,6 +117,10 @@ void setup() {
   baselineSamples[SONAR_NUM] = 0;
   }  
 }
+
+int times1 = 0;
+int times2 = 0;
+int times3 = 0;
  
 void loop() {
   for (uint8_t i = 0; i < SONAR_NUM; i++) {
@@ -119,6 +134,53 @@ void loop() {
     }
   }
   // The rest of your code would go here.
+  soapPrint(digitalRead(SOAP1), "SOAP1", int times1);
+  soapPrint(digitalRead(SOAP2), "SOAP2", int times2);
+  soapPrint(digitalRead(SOAP3), "SOAP3", int times3);
+}
+
+void soapPrint(int digiRead, String soapTitle, int times)
+{
+  long curTime = millis()/1000;
+  
+  if(soapUsed(digiRead))
+  {
+    times = times++;
+    
+    #ifdef SSDSHIELD 
+      myFile = SD.open(soapTitle + ".txt", FILE_WRITE);
+      myFile.println(String(times) + " "+ String(curTime));
+      myFile.close();
+    #endif
+  }
+}
+
+
+int lastSoapSensorInput = 0;
+long lastTimeSoapInput = 0;
+//Returns true if this is the first time the soap has been used in the last 10 sec
+bool soapUsed(int sensorIn)
+{
+  long curTime = millis()/1000;
+
+  //Serial.print(String(lastSoapSensorInput) + " , ");
+  //Serial.print(String(sensorIn != lastSoapSensorInput) + " , ");
+  //Serial.print(String(sensorIn == 1) + " , ");
+  //Serial.println(curTime - lastTimeSoapInput > 10);
+  
+  if(sensorIn != lastSoapSensorInput && sensorIn == 1 && curTime - lastTimeSoapInput > TIME_BETWEEN_SOAP)
+  {
+    lastSoapSensorInput = sensorIn;
+    lastTimeSoapInput = curTime;
+  
+    return true;
+  }
+  else
+  {
+    lastSoapSensorInput = sensorIn;
+    
+    return false;
+  }   
 }
  
 void echoCheck() { // If ping echo, set distance to array.
