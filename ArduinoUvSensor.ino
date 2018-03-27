@@ -45,7 +45,7 @@
 
 
 //number of pulses to take the average of
-int numberOfCycles = 7; 
+int numberOfCycles = 10; 
 int currentCycle = 0;
 int baselineCycles = 10;
 
@@ -134,9 +134,9 @@ void loop() {
     }
   }
   // The rest of your code would go here.
-  soapPrint(digitalRead(SOAP1), "SOAP1", int times1);
-  soapPrint(digitalRead(SOAP2), "SOAP2", int times2);
-  soapPrint(digitalRead(SOAP3), "SOAP3", int times3);
+  soapPrint(digitalRead(SOAP1), "SOAP1", times1);
+  soapPrint(digitalRead(SOAP2), "SOAP2", times2);
+  soapPrint(digitalRead(SOAP3), "SOAP3", times3);
 }
 
 void soapPrint(int digiRead, String soapTitle, int times)
