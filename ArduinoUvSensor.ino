@@ -1,16 +1,24 @@
+// IMPORTANT STATE READ WHAT THEY DO
+//#define SSDSHIELD // If this is defined the code will assume the SSD SHIELD is attached if not it will not compile any logging into the code 
+#define DEBUG // defining this makes the program print to the serial monitor, not defining it prevents the any printing functions from being complied into the code
+
+
 #include <NewPing.h> // for sensors
 #include <SPI.h> //communicate with the shield
 #include <SD.h> // SD read and write functions
 //sensor variables
 #define SONAR_NUM     3 // Number or sensors.
 #define MAX_DISTANCE 400 // Max distance in cm.
-#define PING_INTERVAL 33 // Milliseconds between pings.
+#define PING_INTERVAL 70   // Milliseconds between pings.
 
 // baseline variables, (keep these high because the sensor is utter shite)
-#define BUFFER 20 //How far away from baseline data does a result have to be to not snap to the baseline
 #define DYNAMICBASELINE false // wheather or not to adjust baseline on the fly(not implemented yet).
-#define MINDISTANCE 30
-#define RESETAMOUNT 3
+#define MINDISTANCE 30 // the smallest distance the sensor will accept when setting the baseline
+
+#define RESETAMOUNT 1  //
+#define BUFFER 5 //How far away from baseline data does a result have to be to not snap to the baseline
+
+
 
 //flow varaibles
 #define TIMEUNTILSTART 75; //how many milliseconds to wait before starting to meassure for the baseline
@@ -27,6 +35,7 @@
 #define TRIGGER_PIN2  8
 #define ECHO_PIN2     9
 
+#define LEDPIN  3
 
 
 //number of pulses to take the average of
@@ -50,17 +59,20 @@ bool baselineSet[SONAR_NUM];
 uint8_t currentSensor = 0; // Which sensor is active.
 
 //file stuff
+#ifdef SSDSHEILD
 //create a file 
 File myFile;
+#endif
+
 unsigned int peopleCounter[SONAR_NUM] = {0,0,0}; //counts nr hold people entering
 unsigned int baselineCounter[SONAR_NUM] = {0,0,0};
 unsigned long timeIn[SONAR_NUM];
 
 
-
 void setup() {
   Serial.begin(115200);
   //delay(5000); //delay for 5 secs before starting to set the baseline
+  #ifdef SSDSHIELD
   //Initialize SD card and Check if the SD card and libary failed
   Serial.print("Initializing SD card...");
   pinMode(3, OUTPUT);
@@ -85,6 +97,8 @@ void setup() {
   } else {
     Serial.println("example.txt doesn't exist.");
   }
+  #endif
+  
   pingTimer[0] = millis() + TIMEUNTILSTART; // First ping start in ms.
   for (uint8_t i = 1; i < SONAR_NUM; i++){
   pingTimer[i] = pingTimer[i - 1] + PING_INTERVAL;
@@ -110,7 +124,7 @@ void loop() {
 void echoCheck() { // If ping echo, set distance to array.
   if (sonar[currentSensor].check_timer()){
     int dist = sonar[currentSensor].ping_result / US_ROUNDTRIP_CM; // read the distance;
-    Serial.print(String(dist) + " ");
+    Serial.print(String(dist) + " " + String(dist - baseline[currentSensor]));
     if(baselineSet[currentSensor]){
       if(dist == 0){dist = baseline[currentSensor];}
       //{baseline[currentSensor] = 0.97* baseline[currentSensor] + 0.03 * dist;}
@@ -154,17 +168,19 @@ void oneSensorCycle() { // Do something with the results.
         if(cm[i] == 0){
           baselineCounter[i]++;
           if(baselineCounter[i] == RESETAMOUNT){
-            digitalWrite(3, LOW);
-            myFile = SD.open("sensor" + String(i)+".txt", FILE_WRITE);
+            digitalWrite(LEDPIN, LOW);
             long timeNow = millis()/1000;
+            #ifdef SSDSHIELD 
+            myFile = SD.open("sensor" + String(i)+".txt", FILE_WRITE);
             myFile.println(String(peopleCounter[i]) + " "+ String(timeIn[i]) + " " + String(timeNow));
             myFile.close();
+            #endif
           }
         }else{
           if(baselineCounter[i] >= RESETAMOUNT){
             //somebody have entered the room
             peopleCounter[i]++;
-            digitalWrite(3, HIGH);
+            digitalWrite(LEDPIN, HIGH);
             timeIn[i] = millis()/1000;
           }
           //there must be somebody in the room
