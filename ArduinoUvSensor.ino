@@ -48,11 +48,16 @@ class User{
 #define ACC_PIN0  A3
 #define ACC_PIN1  A4
 #define ACC_PIN2  A5
+
+#define PRE_PIN0 0
+#define PRE_PIN1 1
+#define PRE_PIN2 2
  
 
 //user
 User user[3] = { User(),User(),User()};
 int accPin[3] = {ACC_PIN0 , ACC_PIN1, ACC_PIN2};
+int prePin[3] = {PRE_PIN0 , PRE_PIN1, PRE_PIN2};
 
 // meassurement variables
 const byte filterWindowSize = 15; // how many readings to take median of
@@ -156,6 +161,10 @@ void loop() {
       }
       // Check the soap
       // kevin code goes 
+      int presReading = digitalRead(prePin[i]);
+      if(presReading != 0 && user[i].soapStamp == 0){
+        user[i].soapStamp = millis();
+      }
       
     #ifdef DEBUG //prints only the information if debug mode is declared
     Serial.println("for user " + String(i)+ " :  " + String(user[i].flushStamp)+ "  " + String(user[i].initHW) + "  " + String(user[i].lastHW) + "  " + String(user[i].soapStamp));
