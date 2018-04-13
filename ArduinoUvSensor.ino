@@ -45,13 +45,13 @@ class User{
 #define IR_PIN1  A1
 #define IR_PIN2  A2 
 
-#define ACC_PIN0  A3
-#define ACC_PIN1  A4
-#define ACC_PIN2  A5
+#define ACC_PIN0  0
+#define ACC_PIN1  1
+#define ACC_PIN2  2
 
-#define PRE_PIN0 0
-#define PRE_PIN1 1
-#define PRE_PIN2 2
+#define PRE_PIN0 A3
+#define PRE_PIN1 A4
+#define PRE_PIN2 A5
  
 
 //user
@@ -94,6 +94,7 @@ void setup() {
       irSensor[i].setModel(SharpDistSensor::GP2Y0A710K0F_5V_DS);
       baselineSet[i] = false; //set all baselines as unset
       baselineSamples[i] = 0;
+      pinMode(prePin[i], INPUT);
   }
   delay(2000); //delay for 5 secs before starting to set the baseline
   #ifdef SSDSHIELD
@@ -137,9 +138,9 @@ void loop() {
       currentSensor = i;
 
       // start by checking if there is a flush, and if its been more than 12 seconds since the last flush
-      int accReading = analogRead(accPin[i]); // marc's code goes here
+      // marc's code goes
       
-      if (accReading > 330 &&  millis() > user[i].flushStamp + 12000 ){
+      if (accReading >=  1 &&  millis() > user[i].flushStamp + 12000 ){
         //if it has it must be a new user in, open the correct file
         #ifdef SSDSHIELD
         myFile = SD.open("log" + String(i) + ".txt", FILE_WRITE);
@@ -161,13 +162,17 @@ void loop() {
       }
       // Check the soap
       // kevin code goes 
-      int presReading = digitalRead(prePin[i]);
+      int presReading = analogRead(prePin[i]);
       if(presReading != 0 && user[i].soapStamp == 0){
         user[i].soapStamp = millis();
       }
       
     #ifdef DEBUG //prints only the information if debug mode is declared
-    Serial.println("for user " + String(i)+ " :  " + String(user[i].flushStamp)+ "  " + String(user[i].initHW) + "  " + String(user[i].lastHW) + "  " + String(user[i].soapStamp));
+    //Serial.println("for user " + String(i)+ " :  " + String(user[i].flushStamp)+ "  " + String(user[i].initHW) + "  " + String(user[i].lastHW) + "  " + String(user[i].soapStamp));
+    Serial.println(digitalRead(0));
+    if(digitalRead(0) == 1){
+      delay(2000);
+    }
     #endif
   }  
   // The rest of your code would go here.
