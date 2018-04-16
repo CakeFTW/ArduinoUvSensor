@@ -83,9 +83,6 @@ SharpDistSensor(IR_PIN2, filterWindowSize)};
 //create a file 
 File myFile;
 
-
-
-
 void setup() {
   Serial.begin(9600);
   
@@ -128,6 +125,34 @@ void setup() {
   Serial.println("setup is done");
   #endif
 }
+
+//Requires pin A0 to be a pullup, returns true when soap is used
+unsigned long prevSoapMillis = 0;
+unsigned long soapInterval = 10000;
+
+bool soapPressure()
+{
+  pinMode(A0, INPUT_PULLUP);
+  
+  int sensorValue = analogRead(A0);
+
+  Serial.println(sensorValue);
+
+  unsigned long curMillis = millis();
+
+  if(sensorValue < 100 && curMillis-prevSoapMillis > soapInterval)
+  {
+    prevSoapMillis = curMillis;
+    delay(1);
+    return true;
+  }
+  else
+  { 
+    delay(1); 
+    return false;
+  }
+}
+
 void loop() {
   // check for flush
   // if flushed save user data then clear it
