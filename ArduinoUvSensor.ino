@@ -126,31 +126,19 @@ void setup() {
   #endif
 }
 
-//Requires pin A0 to be a pullup, returns true when soap is used
-unsigned long prevSoapMillis = 0;
-unsigned long soapInterval = 10000;
+//Requires pin A0 to be a pullup, returns soap value
 
-bool soapPressure()
+int soapPressure()
 {
   pinMode(A0, INPUT_PULLUP);
   
   int sensorValue = analogRead(A0);
 
-  Serial.println(sensorValue);
-
-  unsigned long curMillis = millis();
-
-  if(sensorValue < 100 && curMillis-prevSoapMillis > soapInterval)
-  {
-    prevSoapMillis = curMillis;
-    delay(1);
-    return true;
-  }
+  if(sensorValue < 100)
+  return 1;
   else
-  { 
-    delay(1); 
-    return false;
-  }
+  return 0;
+  
 }
 
 void loop() {
