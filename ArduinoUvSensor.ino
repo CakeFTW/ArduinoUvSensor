@@ -1,19 +1,20 @@
 // tasks left 
 // make accelerometer woprk
-// medianfiltering on the distance sensor
-
 
 #include <MedianFilter.h>
-#include <SharpDistSensor.h>
+
 #include <SPI.h> //communicate with the shield
 #include <SD.h> // SD read and write functions
 // IMPORTANT STATE READ WHAT THEY DO
 #define SSDSHIELD // If this is defined the code will assume the SSD SHIELD is attached if not it will not compile any logging into the code 
 #define DEBUG // defining this makes the program print to the serial monitor, not defining it prevents the any printing functions from being complied into the code
 
+#define userNr 3
+#define windowSize 9// size to use for median filtering of the ir sensors
 #define multiplexPin A0 // pin that the multiplexer is connected to 
 int bitPin[4] = {4,5,6,7}; // pins used to which multiplexer channel to read from 
 int pinTable[16][4]; // table to hold the states of bits need to acess a particulair channel
+MedianFilter irFilter[3] = {MedianFilter(windowSize,0), MedianFilter(windowSize,0), MedianFilter(windowSize,0)};
 
 //chanels for the different sensors
 int accCh[3] ={0,1,2}; 
@@ -39,7 +40,7 @@ class User{
 
 //sensor variables
 #define IRBUFFER 120 // what reading mean that hands are in front of the sensor
-#define ACCBUFFER 120 // what reading on the acc to count as flush
+#define ACCBUFFER 360 // what reading on the acc to count as flush
 
 //flow varaibles
 #define TIMEUNTILSTART 75; //how many milliseconds to wait before starting to meassure for the baseline
@@ -49,25 +50,19 @@ class User{
 
 //user
 User user[3] = { User(),User(),User()};
-int accPin[3] = {ACC_PIN0 , ACC_PIN1, ACC_PIN2};
-int prePin[3] = {PRE_PIN0 , PRE_PIN1, PRE_PIN2};
 
 // meassurement variables
 const byte filterWindowSize = 15; // how many readings to take median of
-int reading[IR_NUM]; //used to store all the readings
-long baseline[IR_NUM]; // Store baseLine distances
-int baselineSamples[IR_NUM];
-bool baselineSet[IR_NUM];
+int reading[userNr]; //used to store all the readings
+long baseline[userNr]; // Store baseLine distances
+int baselineSamples[userNr];
+bool baselineSet[userNr];
 uint8_t currentSensor = 0; // Which sensor is active.
 
 //person detection variables
-unsigned long timeIn[IR_NUM];
+unsigned long timeIn[userNr];
 
 //declare sensors
-SharpDistSensor irSensor[IR_NUM] = {
-SharpDistSensor(IR_PIN0, filterWindowSize),
-SharpDistSensor(IR_PIN1, filterWindowSize),
-SharpDistSensor(IR_PIN2, filterWindowSize)};
 
 //file stuff
 
@@ -76,14 +71,7 @@ File myFile;
 
 void setup() {
   Serial.begin(9600);
-  initMultiplexer(); // prep the multiplexer stuff
-  // set the model of the ir sensors
-  for(int i = 0; i < IR_NUM ; i++){
-      irSensor[i].setModel(SharpDistSensor::GP2Y0A710K0F_5V_DS);
-      baselineSet[i] = false; //set all baselines as unset
-      baselineSamples[i] = 0;
-      pinMode(prePin[i], INPUT);
-  }
+  initMultiplex(); // prep the multiplexer stuff
   #ifdef SSDSHIELD
   //Initialize SD card and Check if the SD card and libary failed
   Serial.print("Initializing SD card...");
@@ -118,7 +106,7 @@ void setup() {
 
 void loop() {
 // for each wired bathroom
-  for (uint8_t i = 0; i < 3; i++) {
+  for (uint8_t i = 0; i < 1; i++) {
       // i is used to refer to the sensors attached to the current bathroom
       // start by checking if there is a flush, and if its been more than 12 seconds since the last flush
 
@@ -147,11 +135,12 @@ void loop() {
       }
       
     #ifdef DEBUG //prints only the information if debug mode is declared
-    //Serial.println("for user " + String(i)+ " :  " + String(user[i].flushStamp)+ "  " + String(user[i].initHW) + "  " + String(user[i].lastHW) + "  " + String(user[i].soapStamp));
-    Serial.println(digitalRead(0));
+    Serial.println("for user " + String(i)+ " :  " + String(user[i].flushStamp)+ "  " + String(user[i].initHW) + "  " + String(user[i].lastHW) + "  " + String(user[i].soapStamp));
     #endif
   }  
 }
+
+
 
 int multiplexRead(int pin, bool usingPullUp){
   //setting the bit pins
@@ -208,13 +197,17 @@ bool soapPressure(int nr)
 
 bool irDist(int nr){
   int sensorValue = multiplexRead(irCh[nr], false);
+  irFilter[nr].in(sensorValue);
+  sensorValue = irFilter[nr].out();
   if(sensorValue > IRBUFFER){return true;}
   return false;
 }
 
 bool isFlush(int nr){
   int sensorValue = multiplexRead(accCh[nr], false);
-  if(sensorValue > IRBUFFER){return true;}
+  if(sensorValue > ACCBUFFER){return true;}
   return false;
 }
+
+
 
