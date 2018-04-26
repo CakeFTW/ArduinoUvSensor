@@ -1,12 +1,10 @@
-// tasks left 
-// make accelerometer woprk
-
+#include <Wire.h>
 #include <MedianFilter.h>
 
 #include <SPI.h> //communicate with the shield
 #include <SD.h> // SD read and write functions
 // IMPORTANT STATE READ WHAT THEY DO
-#define SSDSHIELD // If this is defined the code will assume the SSD SHIELD is attached if not it will not compile any logging into the code 
+//#define SSDSHIELD // If this is defined the code will assume the SSD SHIELD is attached if not it will not compile any logging into the code 
 #define DEBUG // defining this makes the program print to the serial monitor, not defining it prevents the any printing functions from being complied into the code
 
 #define userNr 3
@@ -17,9 +15,10 @@ int pinTable[16][4]; // table to hold the states of bits need to acess a particu
 MedianFilter irFilter[3] = {MedianFilter(windowSize,0), MedianFilter(windowSize,0), MedianFilter(windowSize,0)};
 
 //chanels for the different sensors
-int accCh[3] ={0,1,2}; 
-int irCh[3] ={3,4,5};
-int preCh[3] ={6,7,8};
+int irCh[3] ={A0,A1,A2};
+int preCh[3] ={A3,A4,A5};
+bool accState[3] = {false,false,false};
+int wireData = 0;
 
 //class for holding the user data
 class User{
@@ -58,7 +57,7 @@ long baseline[userNr]; // Store baseLine distances
 int baselineSamples[userNr];
 bool baselineSet[userNr];
 uint8_t currentSensor = 0; // Which sensor is active.
-
+bool accIsFlushing[3] = {false,false,false};
 //person detection variables
 unsigned long timeIn[userNr];
 
@@ -71,7 +70,9 @@ File myFile;
 
 void setup() {
   Serial.begin(9600);
-  initMultiplex(); // prep the multiplexer stuff
+  initInput();
+  Wire.begin(9);
+  Wire.onReceive(readAndDecode);
   #ifdef SSDSHIELD
   //Initialize SD card and Check if the SD card and libary failed
   Serial.print("Initializing SD card...");
@@ -106,7 +107,9 @@ void setup() {
 
 void loop() {
 // for each wired bathroom
-  for (uint8_t i = 0; i < 1; i++) {
+  // read the incoming signal about the accelerometers
+  Serial.println("are the toilets flushing : " + String(accIsFlushing[0]) + " : " + String(accIsFlushing[1]) + " : "  + String(accIsFlushing[2])  );
+  for (uint8_t i = 0; i < 3; i++) {
       // i is used to refer to the sensors attached to the current bathroom
       // start by checking if there is a flush, and if its been more than 12 seconds since the last flush
 
@@ -133,80 +136,70 @@ void loop() {
       if(soapPressure(i) && user[i].soapStamp == 0){
         user[i].soapStamp = millis();
       }
-      
-    #ifdef DEBUG //prints only the information if debug mode is declared
-    Serial.println("for user " + String(i)+ " :  " + String(user[i].flushStamp)+ "  " + String(user[i].initHW) + "  " + String(user[i].lastHW) + "  " + String(user[i].soapStamp));
-    #endif
   }  
+  #ifdef DEBUG //prints only the information if debug mode is declared
+  for(int i = 0; i < 3; i++){
+  //Serial.print("for user " + String(i)+ " :  " + String(user[i].flushStamp)+ "  " + String(user[i].initHW) + "  " + String(user[i].lastHW) + "  " + String(user[i].soapStamp) + "             ");
+  }
+  Serial.println();
+  #endif*/
 }
 
-
-
-int multiplexRead(int pin, bool usingPullUp){
-  //setting the bit pins
-  for(int i = 0; i < 4; i ++){
-    if(pinTable[pin][i] != 0){
-    digitalWrite(bitPin[i], HIGH);
-    }else{
-    digitalWrite(bitPin[i], LOW);
-    }
+void initInput()
+{
+  for(int i = 0; i < 3; i++){
+    pinMode(preCh[i], INPUT_PULLUP);
+    pinMode(irCh[i], INPUT);
   }
-  // check if using pull up
-  if(usingPullUp){
-    pinMode(multiplexPin, INPUT_PULLUP);
-  }else{
-    pinMode(multiplexPin, INPUT);
-  }
-  delay(1); // give the arduino a msecond to account for the changeins in pull up
-  return analogRead(multiplexPin); // read the pin an return the results
-}
-
-void initMultiplex(){
-  for(int i = 0; i < 4; i++){
-    pinMode(bitPin[i], OUTPUT);
-  }
-  for(int i = 0; i < 9; i++){
-    int nr = i;
-    if(nr - 8 >= 0){
-      pinTable[i][3] = 1;
-      nr -= 8;
-    }
-    if(nr - 4 >= 0){
-      pinTable[i][2] = 1;
-      nr -= 4;
-    }
-    if(nr - 2 >= 0){
-      pinTable[i][1] = 1;
-      nr -= 2;
-    }
-    if(nr - 1 >= 0){
-      pinTable[i][0] = 1;
-      nr -= 1;
-    }
-    //Serial.println("for " + String(i) + " : " + String(pinTable[i][3]) + " " + String(pinTable[i][2]) + " " + String(pinTable[i][1]) + " " + String(pinTable[i][0]));
-  }
+  
 }
 
 
 bool soapPressure(int nr)
 { 
-  int sensorValue = multiplexRead(preCh[nr], true);
+  int sensorValue = analogRead(preCh[nr]);
   if(sensorValue < 100){return true;}
   return false;
 }
 
-bool irDist(int nr){
-  int sensorValue = multiplexRead(irCh[nr], false);
+bool irDist(int nr)
+{
+  int sensorValue = analogRead(irCh[nr]);
   irFilter[nr].in(sensorValue);
   sensorValue = irFilter[nr].out();
   if(sensorValue > IRBUFFER){return true;}
   return false;
 }
 
-bool isFlush(int nr){
-  int sensorValue = multiplexRead(accCh[nr], false);
-  if(sensorValue > ACCBUFFER){return true;}
+bool isFlush(int nr)
+{
+  if(accIsFlushing[nr] == true){return true;}
   return false;
+}
+
+void readAndDecode()
+{
+  wireData = Wire.read();
+  if(wireData -4 >= 0){
+    wireData -= 4;
+    accIsFlushing[2] = true; 
+  }else{
+    accIsFlushing[2] = false;
+  }
+
+  if(wireData -2 >= 0){
+    wireData -= 2;
+    accIsFlushing[1] = true; 
+  }else{
+    accIsFlushing[1] = false;
+  }
+
+  if(wireData -1 >= 0){
+    wireData -= 1;
+    accIsFlushing[0] = true; 
+  }else{
+    accIsFlushing[0] = false;
+  } 
 }
 
 
