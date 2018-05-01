@@ -2,20 +2,20 @@
 #include <SPI.h> //communicate with the shield
 #include <SD.h> // SD read and write functions
 // IMPORTANT STATE READ WHAT THEY DO
-//#define SSDSHIELD // If this is defined the code will assume the SSD SHIELD is attached if not it will not compile any logging into the code 
-#define DEBUG // defining this makes the program print to the serial monitor, not defining it prevents the any printing functions from being complied into the code
+#define SSDSHIELD // If this is defined the code will assume the SSD SHIELD is attached if not it will not compile any logging into the code 
+//#define DEBUG // defining this makes the program print to the serial monitor, not defining it prevents the any printing functions from being complied into the code
 
 //sensor variables
 #define userNr 3
-#define windowSize 9// size to use for median filtering of the ir sensors 
-#define windowSizeAcc 5
+#define windowSize 9 // size to use for median filtering of the ir sensors 
+#define windowSizeAcc 3 // filter size to use for the accelerometer 
 
 #define IRBUFFER 120 // what reading mean that hands are in front of the sensor
 #define ACCBUFFER 360 // what reading on the acc to count as flush
 
 //filters for the noisy transducers Inferred and Accelerometer
 MedianFilter irFilter[3] = {MedianFilter(windowSize,0), MedianFilter(windowSize,0), MedianFilter(windowSize,0)};
-MedianFilter accFilter[3] = {MedianFilter(windowSizeAcc,0), MedianFilter(windowSizeAcc,0), MedianFilter(windowSizeAcc,0)};
+//MedianFilter accFilter[3] = {MedianFilter(windowSizeAcc,0), MedianFilter(windowSizeAcc,0), MedianFilter(windowSizeAcc,0)};
 
 //chanels for the different sensors
 int irCh[3] ={A0,A1,A2};
@@ -23,8 +23,8 @@ int preCh[3] ={A3,A4,A5};
 int accCh[3] ={A6,A7,A8};
 
 //accelerometer controls
-int prevAccReading[3] = {0,0,0}; // holds the last accelerometer reading for comparison
-int accBuf[3] = {4,4,4}; // how much difference between readings to count as lever movement, controls how sensitive the accelerometer is try to stay above 3 if possible
+int prevAccReading[3] = {300,300,300}; // holds the last accelerometer reading for comparison
+int accBuf[3] = {60,60,60}; // how much difference between readings to count as lever movement, controls how sensitive the accelerometer is try to stay above 3 if possible
 
 
 //class for holding the user data
@@ -47,6 +47,7 @@ class User{
 User user[3] = { User(),User(),User()};
 //person detection variables
 unsigned long timeIn[userNr];
+unsigned long timer = 0;
 int sensorValue;
 
 
@@ -90,11 +91,17 @@ void setup() {
 
 void loop(){
 // for each wired bathroom
+/*
+for(int i = 0 ; i < 3 ; i++){
+  Serial.print( user[i].flushStamp);
+  Serial.print( "    ") ;
+}
+Serial.println();*/
   for (uint8_t i = 0; i < 3; i++) {
       // i is used to refer to the sensors attached to the current bathroom
       // start by checking if there is a flush, and if its been more than 12 seconds since the last flush
-
-      if (isFlush(i) &&  millis() > user[i].flushStamp + 12000 ){
+      //  
+      if (isFlush(i) && millis() > user[i].flushStamp + 12000){
         //if it has it must be a new user in, open the correct file
         #ifdef SSDSHIELD
         myFile = SD.open("log" + String(i) + ".txt", FILE_WRITE);
@@ -119,10 +126,13 @@ void loop(){
       }
   }  
   #ifdef DEBUG //prints only the information if debug mode is declared
-  for(int i = 0; i < 3; i++){
-  Serial.print("for user " + String(i)+ " :  " + String(user[i].flushStamp)+ "  " + String(user[i].initHW) + "  " + String(user[i].lastHW) + "  " + String(user[i].soapStamp) + "             ");
+  if(millis() > timer){
+    for(int i = 0; i < 3; i++){
+    Serial.print("for user " + String(i)+ " :  " + String(user[i].flushStamp)+ "  " + String(user[i].initHW) + "  " + String(user[i].lastHW) + "  " + String(user[i].soapStamp) + "             ");
+    }
+    Serial.println();
+    timer = millis() + 2000;
   }
-  Serial.println();
   #endif*/
 }
 
@@ -139,7 +149,7 @@ void initInput()
 bool soapPressure(int nr)
 { 
   sensorValue = analogRead(preCh[nr]);
-  if(sensorValue < 100){return true;}
+  if(sensorValue < 250){return true;}
   return false;
 }
 
@@ -155,11 +165,15 @@ bool irDist(int nr)
 bool isFlush(int nr)
 {
   sensorValue = analogRead(accCh[nr]);
-  accFilter[nr].in(sensorValue);
-  sensorValue = accFilter[nr].out() - prevAccReading[nr];
-  if(abs(sensorValue > accBuf[nr])){
+  //accFilter[nr].in(sensorValue);
+  //sensorValue = accFilter[nr].out();
+  //Serial.print(sensorValue - prevAccReading[nr]);
+  //Serial.print( "   ");
+  if( abs(sensorValue -  prevAccReading[nr]) > accBuf[nr]){
+    prevAccReading[nr] = sensorValue;
     return true;
   }
+  prevAccReading[nr] = sensorValue;
   return false;
 }
 
