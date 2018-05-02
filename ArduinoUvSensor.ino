@@ -12,7 +12,7 @@
 
 #define IRBUFFER 120 // what reading mean that hands are in front of the sensor
 #define ACCBUFFER 360 // what reading on the acc to count as flush
-#define FLUSHBUFFER 900
+#define FLUSHBUFFER 120
 
 //filters for the noisy transducers Inferred and Accelerometer
 MedianFilter irFilter[3] = {MedianFilter(windowSize,0), MedianFilter(windowSize,0), MedianFilter(windowSize,0)};
@@ -94,7 +94,7 @@ void loop(){
 // for each wired bathroom
 /*
 for(int i = 0 ; i < 3 ; i++){
-  Serial.print( user[i].flushStamp);
+  Serial.print( analogRead(accCh[i]));
   Serial.print( "    ") ;
 }
 Serial.println();*/
@@ -142,7 +142,7 @@ void initInput()
   for(int i = 0; i < 3; i++){
     pinMode(preCh[i], INPUT_PULLUP);
     pinMode(irCh[i], INPUT);
-    pinMode(accCh[i], INPUT);
+    pinMode(accCh[i], INPUT_PULLUP);
   }
   
 }
@@ -166,8 +166,13 @@ bool irDist(int nr)
 bool isFlush(int nr)
 {
   sensorValue = analogRead(accCh[nr]);
-  if(sensorValue > FLUSHBUFFER){return true;}
+  if(nr == 2){
+    if(sensorValue > 750){return true;}
   return false;
+  }else{
+    if(sensorValue < FLUSHBUFFER){return true;}
+  return false;
+  }
 }
 
 
