@@ -12,6 +12,7 @@
 
 #define IRBUFFER 120 // what reading mean that hands are in front of the sensor
 #define ACCBUFFER 360 // what reading on the acc to count as flush
+#define FLUSHBUFFER 900
 
 //filters for the noisy transducers Inferred and Accelerometer
 MedianFilter irFilter[3] = {MedianFilter(windowSize,0), MedianFilter(windowSize,0), MedianFilter(windowSize,0)};
@@ -165,15 +166,7 @@ bool irDist(int nr)
 bool isFlush(int nr)
 {
   sensorValue = analogRead(accCh[nr]);
-  //accFilter[nr].in(sensorValue);
-  //sensorValue = accFilter[nr].out();
-  //Serial.print(sensorValue - prevAccReading[nr]);
-  //Serial.print( "   ");
-  if( abs(sensorValue -  prevAccReading[nr]) > accBuf[nr]){
-    prevAccReading[nr] = sensorValue;
-    return true;
-  }
-  prevAccReading[nr] = sensorValue;
+  if(sensorValue > FLUSHBUFFER){return true;}
   return false;
 }
 
